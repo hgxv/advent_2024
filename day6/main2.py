@@ -1,8 +1,12 @@
 import time
+from multiprocessing import Process
+from threading import Lock
+
 
 grid = []
 visited = []
-
+loopholes = 0
+lock = Lock()
 start = time.time()
 
 with open("input.txt") as file:
@@ -28,7 +32,6 @@ def count_X_occurence(grid):
 def guard_patrol(x, y, grid, has_visited_yet=False):
     dir_cycle = [(0, -1), (1, 0), (0, 1), (-1, 0)]
     dir = 0
-    is_loophole = 0
     corners = {}
 
     while True:
@@ -40,7 +43,7 @@ def guard_patrol(x, y, grid, has_visited_yet=False):
         ):
             if not has_visited_yet:
                 visited.append([x, y])
-            return is_loophole
+            return 0
 
         next_x = x + dir_cycle[dir][0]
         next_y = y + dir_cycle[dir][1]
@@ -70,8 +73,16 @@ def guard_patrol(x, y, grid, has_visited_yet=False):
             y += dir_cycle[dir][1]
 
 
+def increment_loopholes(x, y, grid):
+    global loopholes
+    print("a")
+    result = guard_patrol(x, y, grid, True)
+    with lock:
+        loopholes += result
+
+
 def try_to_block(x, y):
-    loopholes = 0
+    threads = []
     for coordonates in visited[1:]:
         index_y = coordonates[1]
         index_x = coordonates[0]
@@ -81,11 +92,16 @@ def try_to_block(x, y):
         replacement = list(new_grid[index_y])
         replacement[index_x] = "#"
         new_grid[index_y] = "".join(replacement)
-        loopholes += guard_patrol(x_copy, y_copy, new_grid, True)
+        p = Process(target=increment_loopholes, args=(x_copy, y_copy, new_grid))
+        p.start()
+        threads.append(p)
+    for tt in threads:
+        tt.join()
     print(loopholes)
 
 
-guard_patrol(x, y, grid)
-try_to_block(x, y)
-stop = time.time()
-print(stop - start)
+if __name__ == "__main__":
+    guard_patrol(x, y, grid)
+    try_to_block(x, y)
+    stop = time.time()
+    print(stop - start)
